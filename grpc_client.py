@@ -17,8 +17,8 @@ def initializeClient(ipport):
 def sendMessage(author,message, stub):
 
     # create a valid request message
-    insult = messagingServer_pb2.Message(value=message,author=author) #Message clase del .proto
-    stub.sendMessage(insult) #sendMessage metode del grpc server
+    m = messagingServer_pb2.Message(value=message,author=author) #Message clase del .proto
+    stub.sendMessage(m) #sendMessage metode del grpc server
 
 
 

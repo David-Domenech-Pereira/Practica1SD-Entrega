@@ -22,13 +22,10 @@ def start_connection(nombre):
 def sendMess(exchange, message,author):
     # Posem en un json que envii missatge + author, així el que ho rep ho sap millor
     content_json = {"message": message, "author": author}
-    # Establece una conexión y canal cada vez que envíes un mensaje
+    
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
     channel = connection.channel()
-    # Asegúrate de que el exchange existe antes de publicar
- #   channel.exchange_declare(exchange=exchange, exchange_type='fanout')
-    # Publicar mensaje
-    # Delivery_mode 2, es persistent, TODO, cambiar segun la cola
+
     channel.basic_publish(exchange=exchange, routing_key='', properties=pika.BasicProperties(content_type='text/plain',
                                                           delivery_mode=pika.DeliveryMode.Persistent), body=json.dumps(content_json))
    
@@ -47,11 +44,14 @@ def subscribeInsults():
     def insult_receiver():
         connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         channel = connection.channel()
+
+        #En aquest cas només és necessari crear una cua per tal d'enviar l'insult només a un sol usuari
         channel.queue_declare(queue='insultQueue')
 
         def on_message(ch, method, properties, body):
             print(f"Received an insult: {body.decode()}")
 
+        #S'ndica el mètode callback i el autoack per a que rabbitMQ envii automaticamnet el ACK al final de la comunicació
         channel.basic_consume(queue='insultQueue', on_message_callback=on_message, auto_ack=True)
         channel.start_consuming()
     thread = threading.Thread(target=insult_receiver)
@@ -64,8 +64,8 @@ def sendDiscoverMessage():
         print(body.decode())
     # Declare a unique queue for responses
     
-    result = channel.queue_declare(queue='',exclusive=True)
-    callback_queue = result.method.queue
+    result = channel.queue_declare(queue='',exclusive=True) #Declara la cua per contestar
+    callback_queue = result.method.queue #Agafo la cua que he declarat
     # It has to consume, so we get the response message
     channel.basic_consume(
         queue=callback_queue,
@@ -82,8 +82,8 @@ def sendDiscoverMessage():
             correlation_id=corr_id,
         ),
         body="")
-    try:
-        # He trobat un problema que pot ser que es quedi de manera infinita esperant
+    try: #Com que l'usuari que envia el disciver no sap a quants usuris ho ha enviat no sap quants respondràn, raó per la qual es podria quedar esperant infinitament.
+        #Així que esperem els missatges fins que l'usuri faci cnrl+c
         print("Usuaris disponibles, prem ctrl+c per aturar:")
         channel.start_consuming() 
         
@@ -97,7 +97,7 @@ def sendDiscoverMessage():
 def subscribeDiscoverQueue(alias,ip, port):
     def start_consumingDiscover():
         def on_request(ch, method, properties, body):
-            print("Discovery request received")
+            
             # We reply with an ip and a port
             response =str(alias)+"=>"+str(ip)+":"+str(port)
             ch.basic_publish(exchange='',
@@ -113,14 +113,14 @@ def subscribeDiscoverQueue(alias,ip, port):
         # Cada usuari te la seva cua independent
         
         channel.queue_declare(queue='onlineUsers'+user_rand_id, exclusive=True)
-
+        #Es fa per evitar tenir 2 o més exchange amb el mateix nom
         channel.basic_qos(prefetch_count=1) # Limita el número de mensajes que el servidor manejará sin enviar un ack (acuse de recibo)
         channel.basic_consume(queue='onlineUsers'+user_rand_id, on_message_callback=on_request)
 
         # bindejem la cua al exchange en mode fanout
         channel.queue_bind(exchange='onlineUsersExchange', queue='onlineUsers'+user_rand_id)
 
-        print("Service is waiting for discovery requests")
+      
         channel.start_consuming()
     # Ejecutar start_consuming en un hilo separado
     thread = threading.Thread(target=start_consumingDiscover)
@@ -129,31 +129,18 @@ def subscribeDiscoverQueue(alias,ip, port):
 def subscribeQueue(name, callback, username, durable=False):
     def start_consuming():
             queue_name=username+";"+name
-        
-       # try:
             connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
             channel = connection.channel()
             try:
                 channel.exchange_declare(exchange=name, exchange_type='fanout',durable=durable)
             except Exception as e:
-                channel = connection.channel()
-                channel.exchange_declare(exchange=name, exchange_type='fanout',durable=(not durable))
+                print("Error al conectar-se")
+                return -1
             result = channel.queue_declare(queue=queue_name, durable=durable)
             channel.queue_bind(exchange=name, queue=queue_name)
             channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
-            print('Suscripción a la cola '+name+' exitosa. Esperando mensajes...')
             channel.start_consuming()
-       # except Exception as e:
-        #    print(e)
-         #   connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
-          #  channel = connection.channel()
-           # channel.exchange_declare(exchange=name, exchange_type='fanout',durable=(not durable))
-            #result = channel.queue_declare(queue=username, durable=(not durable))
-           # queue_name = result.method.queue
-           # channel.queue_bind(exchange=name, queue=queue_name)
-           # channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
-           # print('Suscripción a la cola '+name+' exitosa. Esperando mensajes...')
-           # channel.start_consuming()
+      
 
     # Ejecutar start_consuming en un hilo separado
     thread = threading.Thread(target=start_consuming)

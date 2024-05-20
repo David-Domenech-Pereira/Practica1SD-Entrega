@@ -24,5 +24,5 @@ A més, es permeten 4 operacions:
 
 ## Steps to run
 
-- Encendre el mainmiddleware.py
-- Per cada client executar el main.py
+- Encendre el start-server.sh
+- Per cada client executar el start-client.sh

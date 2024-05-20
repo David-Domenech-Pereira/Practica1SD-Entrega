@@ -4,7 +4,7 @@ import multiprocessing
 import json
 from grpc_server import start_server
 from grpc_client import initializeClient, sendMessage
-from redisCont import  getUser
+from redisCont import  getUser, setUser
 from redisCont import getAllKeys
 from rabbitMQcont import subscribeQueue,sendDiscoverMessage, sendMess, subscribeInsults
 
@@ -38,14 +38,17 @@ def main():
             # pos a qui hem d'enviar
             nom = input("Introdueix el nom de l'usuari al que vols enviar el missatge o el nom del grup: \n")
             ipport = getUser(nom) # busquem la ip i el port de l'usuari
-            if ipport:
-                print("Hem trobat a "+nom+" a "+ipport)
+            if ipport:  #Si hem trobat l'usuari
                 stub = initializeClient(ipport)
                 print("Benvingut a la conversa amb "+nom+"!")
                 message=""
                 while message!="exit":
-                    message = input() # el missatge que envies
-                    sendMessage(author,message,stub) # en efecte, enviem el missatge
+                    try:
+                        message = input() # el missatge que envies
+                        sendMessage(author,message,stub) # en efecte, enviem el missatge
+                    except:
+                        # Per si fa control+c
+                        break
             else:
                 # Potser és un grup
                 # Per decisió de disseny, es crea el grup i es subscriu
@@ -54,8 +57,12 @@ def main():
                 print("Benvingut al chat")
                 message=""
                 while message!="exit":
+                    try:
                         message = input() # el missatge que envies
                         sendMess(nom,message,author)
+                    except:
+                        # Per si fa control + c
+                        break
                 
         elif opcio=="2":
             #Subscriure grup
@@ -66,21 +73,42 @@ def main():
             # Discover chats
             # aixo llista els chats + grups disponivles
             print("Els chats disponibles son:")
-            sendDiscoverMessage()
+            try:
+                sendDiscoverMessage()
+            except:
+                # Per si fa control + c
+                print("Discovery finalitzat")
         elif opcio=="4":
             # Access insult channel
             subscribeInsults()
             message=""
             while message!="exit":
+                try:
                     message = input() # el missatge que envies
                     send_insult(message) # en efecte, enviem el missatge
+                except:
+                    break
         else:
             print("Opció incorrecta, torna a intentar-ho")
             #mostrar_menu()
 
 def subscriuGrup(nom,authorname):
+    # Mirem a redis si el tenim, marquem amb G per distingir-ho
+    if(getUser("G"+nom)=="P"):
+        persistent=str(1)
+    elif(getUser("G"+nom)=="T"):
+        # Transient
+        persistent=str(0)
+    else:
+        # Li preguntem i guardem a Redis
+        persistent=input("Vols persistencia? Indica 1 si sí, o si no\n")
+        if (persistent==str(1)):
+            guardar="P"
+        else: guardar="T"
+        # Guardem a redis
+        setUser("G"+nom,guardar)
+        
     #Subscribe to group chat
-    peristent=input("Vols persistencia? Indica 1 si sí, o si no\n")
     # Define la función callback que procesará los mensajes
     def callback(ch, method, properties, body):
         # Desfem el que ens envia, que ho fa amb un json
@@ -91,7 +119,7 @@ def subscriuGrup(nom,authorname):
         m = Message(message_content,autor_missatge+"@"+nom)
         print(m)
     
-    subscribeQueue(nom, callback,authorname, peristent==str(1))
+    subscribeQueue(nom, callback,authorname, persistent==str(1))
    
     # Posem el grup per a que es pugui descobrir
     from rabbitMQcont import subscribeDiscoverQueue

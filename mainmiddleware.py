@@ -12,5 +12,3 @@ server_processRedis.start()
 
 server_processRabbitMQ = multiprocessing.Process(target=start_rabbitMQ_server)
 server_processRabbitMQ.start()
-
-print("hola que tal va")

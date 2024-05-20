@@ -11,7 +11,10 @@ def setUser(alias,ipport):
     return
      
 def getUser(alias):
-    #global r # poso això per dir que faci servir la variable global r
+    """
+    Mwthod to search for a user in the Redis DB
+    Alias: Username to search
+    """
     return r.get(alias)
 
 def getAllKeys():   #Per tal d'obtenir la llista d'usuaris conectats

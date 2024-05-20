@@ -50,8 +50,6 @@ def start_server(alias):
     
     #guardem IP:port a redis
     setUser(alias,'localhost:'+str(port))
-    # listen on port XXXX
-    print('Starting server. Listening on port '+str(port)+'.')
     
     #We subscribe to the rabbitMQcont queue, we reply with our ip and port
     from rabbitMQcont import subscribeDiscoverQueue

@@ -1,0 +1,13 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+message Message {
+  string value = 1;
+  string author = 2;
+}
+
+
+service MessagingService {
+ 
+  rpc sendMessage (Message) returns (google.protobuf.Empty) {}
+}

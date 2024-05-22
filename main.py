@@ -6,7 +6,7 @@ from grpc_server import start_server
 from grpc_client import initializeClient, sendMessage
 from redisCont import  getUser, setUser
 from redisCont import getAllKeys
-from rabbitMQcont import subscribeQueue,sendDiscoverMessage, sendMess, subscribeInsults
+from rabbitMQcont import subscribeQueue,sendDiscoverMessage, sendMess, subscribeInsults, send_insult
 
 
 #from redisCont import connect
